@@ -1,0 +1,218 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#5145e5">
+  <meta name="description" content="FoundIt helps people report lost items and share found belongings with their community.">
+  <title>FoundIt — Lost & Found Network</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <header class="site-header">
+    <nav class="navbar">
+      <a class="logo" href="#home" aria-label="FoundIt home">
+        <span class="logo-mark">⌕</span>
+        <span>FoundIt<span>.</span></span>
+      </a>
+
+      <div class="nav-links">
+        <a href="#home">Home</a>
+        <a href="#report">Reports</a>
+        <a href="#about">About</a>
+        <a href="#report" class="nav-cta">+ Report Item</a>
+      </div>
+    </nav>
+  </header>
+
+  <section class="hero" id="home">
+    <div class="hero-inner">
+      <div>
+        <span class="eyebrow">✦ Your community, connected</span>
+        <h1>Lost something?<br>Let's <span>find it.</span></h1>
+        <p>
+          A missing item can mean a lot. Report what you've lost,
+          share what you've found, and help your community reconnect
+          with the things that matter.
+        </p>
+
+        <div class="hero-buttons">
+          <a class="button button-primary" href="#report">＋ Report an Item</a>
+          <a class="button button-secondary" href="#reports">Explore Reports ↘</a>
+        </div>
+      </div>
+
+      <div class="hero-visual" aria-label="Search illustration">
+        <div class="hero-illustration">
+          <div class="big-search">⌕</div>
+          <div class="floating-note note-one">🔎 Every item matters</div>
+          <div class="floating-note note-two">💜 Help someone today</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="stats" aria-label="Website highlights">
+    <div class="stat-card">
+      <strong>01</strong>
+      <span>Report lost items</span>
+    </div>
+    <div class="stat-card">
+      <strong>02</strong>
+      <span>Share found items</span>
+    </div>
+    <div class="stat-card">
+      <strong>03</strong>
+      <span>Search with ease</span>
+    </div>
+  </div>
+
+  <main>
+    <section id="report">
+      <div class="section-heading">
+        <span class="eyebrow">Lost it or found it?</span>
+        <h2>Let's bring it back together.</h2>
+        <p>Add an item report or search the existing reports below.</p>
+      </div>
+
+      <div class="report-layout">
+        <div class="panel">
+          <h3>Report an item</h3>
+          <p class="panel-description">
+            Share the details so others can recognise the item.
+          </p>
+
+          <form id="reportForm">
+            <div class="form-group">
+              <label for="type">Report type *</label>
+              <select id="type" required>
+                <option value="">Select report type</option>
+                <option value="Lost">I lost an item</option>
+                <option value="Found">I found an item</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="itemName">Item name *</label>
+              <input
+                type="text"
+                id="itemName"
+                placeholder="e.g. Black wallet"
+                maxlength="100"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="location">Location *</label>
+              <input
+                type="text"
+                id="location"
+                placeholder="e.g. College library"
+                maxlength="150"
+                required
+              >
+            </div>
+
+            <div class="form-group">
+              <label for="category">Category *</label>
+              <select id="category" required>
+                <option value="">Choose a category</option>
+                <option value="Electronics">Electronics</option>
+                <option value="Wallet or Money">Wallet or Money</option>
+                <option value="ID Card or Documents">ID Card or Documents</option>
+                <option value="Books or Stationery">Books or Stationery</option>
+                <option value="Clothing">Clothing</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="reportDate">Date of loss or finding *</label>
+              <input type="date" id="reportDate" required>
+            </div>
+
+            <div class="form-group">
+              <label for="itemPhoto">Item photo (optional)</label>
+              <input type="file" id="itemPhoto" accept="image/*">
+            </div>
+
+            <button type="submit" class="button button-primary">
+              Submit Report →
+            </button>
+
+            <p id="message" role="status" aria-live="polite"></p>
+          </form>
+        </div>
+
+        <div class="panel" id="reports">
+          <div class="results-heading">
+            <h3>Community reports</h3>
+            <span class="results-label">Lost & Found</span>
+          </div>
+
+          <p class="panel-description">
+            Search by item name, location, or category.
+          </p>
+
+          <div class="search-box">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input
+              type="search"
+              id="searchInput"
+              placeholder="Search reports..."
+              aria-label="Search reports"
+            >
+          </div>
+
+          <div id="reportsList">
+            <p>Loading reports...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <section class="about-section" id="about">
+    <div class="about-inner">
+      <span class="eyebrow">About FoundIt</span>
+      <h2>Small actions. Meaningful reunions.</h2>
+      <p>
+        FoundIt is a simple Lost & Found project designed to make
+        reporting missing belongings and sharing found items easier.
+        A little information can help someone take the next step.
+      </p>
+
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">📝</div>
+          <h3>Easy reporting</h3>
+          <p>Add the item name, category, location, date and an optional photo.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🔍</div>
+          <h3>Quick search</h3>
+          <p>Search reports using the item name, category or location.</p>
+        </div>
+
+        <div class="feature-card">
+          <div class="feature-icon">🤝</div>
+          <h3>Community support</h3>
+          <p>Make it easier for people to share useful lost-and-found information.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <strong>FoundIt.</strong> — Helping lost items find their way home.
+    <br>
+    <span>Student project • Handle personal information carefully.</span>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
