@@ -8,66 +8,53 @@ const submitButton = reportForm.querySelector('button[type="submit"]');
 
 let reports = [];
 let editingId = null;
+let currentUser = null;
+let unsubscribeReports = null;
 
-// Load saved reports
-try {
-  const savedReports = JSON.parse(
-    localStorage.getItem("foundItReports")
-  );
-
-  if (Array.isArray(savedReports)) {
-    reports = savedReports;
-  }
-} catch (error) {
-  reports = [];
-}
-
-// Give older reports an ID if they do not have one
-reports = reports.map(function(report) {
-  return {
-    ...report,
-    id: report.id || crypto.randomUUID(),
-    category: report.category || "",
-    reportDate: report.reportDate || "",
-    photo: report.photo || ""
-  };
-});
+const itemsRef = db.collection("items");
 
 function showMessage(text, color) {
   message.textContent = text;
   message.style.color = color;
 }
 
-function saveReports() {
-  try {
-    localStorage.setItem(
-      "foundItReports",
-      JSON.stringify(reports)
-    );
-    return true;
-  } catch (error) {
-    showMessage(
-      "Could not save. The browser storage may be full.",
-      "#d83b50"
-    );
-    return false;
-  }
-}
-
-// Save IDs added to older reports
-saveReports();
-
 function addTextElement(parent, tag, text, className) {
   const element = document.createElement(tag);
   element.textContent = text;
-
-  if (className) {
-    element.className = className;
-  }
-
+  if (className) element.className = className;
   parent.appendChild(element);
   return element;
 }
+
+// Anonymous login
+auth.signInAnonymously().catch(function(error) {
+  console.error(error);
+  showMessage("Sign-in failed. Please refresh.", "#d83b50");
+});
+
+// Listen for login and reports
+auth.onAuthStateChanged(function(user) {
+  if (!user) return;
+
+  currentUser = user;
+
+  if (unsubscribeReports) unsubscribeReports();
+
+  unsubscribeReports = itemsRef
+    .orderBy("createdAt", "desc")
+    .onSnapshot(function(snapshot) {
+      reports = snapshot.docs.map(function(doc) {
+        return {
+          id: doc.id,
+          ...doc.data()
+        };
+      });
+      displayReports();
+    }, function(error) {
+      console.error(error);
+      showMessage("Could not load reports. Check Firestore rules.", "#d83b50");
+    });
+});
 
 function displayReports() {
   reportsList.replaceChildren();
@@ -84,65 +71,52 @@ function displayReports() {
 
   if (filteredReports.length === 0) {
     const emptyMessage = document.createElement("p");
-
     emptyMessage.textContent = searchText
       ? "No matching reports found. Try another search."
       : "No reports yet. Add the first community report!";
-
     reportsList.appendChild(emptyMessage);
     return;
   }
 
-  filteredReports.slice().reverse().forEach(function(report) {
+  filteredReports.forEach(function(report) {
     const card = document.createElement("article");
     card.className = "report-card";
 
     const badge = document.createElement("span");
-    badge.className =
-      report.type === "Lost" ? "lost-badge" : "found-badge";
-    badge.textContent =
-      report.type === "Lost" ? "LOST ITEM" : "FOUND ITEM";
+    badge.className = report.type === "Lost" ? "lost-badge" : "found-badge";
+    badge.textContent = report.type === "Lost" ? "LOST ITEM" : "FOUND ITEM";
 
     card.appendChild(badge);
     addTextElement(card, "h3", report.itemName || "Unnamed item");
-
-    if (report.photo) {
-      const photo = document.createElement("img");
-      photo.src = report.photo;
-      photo.alt = "Photo of " + (report.itemName || "reported item");
-      photo.className = "report-photo";
-      photo.loading = "lazy";
-      card.appendChild(photo);
-    }
-
     addTextElement(card, "p", "Status: " + (report.type || "Not provided"));
     addTextElement(card, "p", "Category: " + (report.category || "Not provided"));
     addTextElement(card, "p", "Location: " + (report.location || "Not provided"));
     addTextElement(card, "p", "Date: " + (report.reportDate || "Not provided"));
 
-    const actions = document.createElement("div");
-    actions.className = "report-actions";
+    if (currentUser && report.ownerUid === currentUser.uid) {
+      const actions = document.createElement("div");
+      actions.className = "report-actions";
 
-    const editButton = document.createElement("button");
-    editButton.type = "button";
-    editButton.className = "edit-button";
-    editButton.textContent = "✎ Edit";
+      const editButton = document.createElement("button");
+      editButton.type = "button";
+      editButton.className = "edit-button";
+      editButton.textContent = "✎ Edit";
+      editButton.addEventListener("click", function() {
+        editReport(report.id);
+      });
 
-    editButton.addEventListener("click", function() {
-      editReport(report.id);
-    });
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "delete-button";
+      deleteButton.textContent = "✕ Delete";
+      deleteButton.addEventListener("click", function() {
+        deleteReport(report.id);
+      });
 
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.className = "delete-button";
-    deleteButton.textContent = "✕ Delete";
+      actions.append(editButton, deleteButton);
+      card.appendChild(actions);
+    }
 
-    deleteButton.addEventListener("click", function() {
-      deleteReport(report.id);
-    });
-
-    actions.append(editButton, deleteButton);
-    card.appendChild(actions);
     reportsList.appendChild(card);
   });
 }
@@ -152,7 +126,7 @@ function editReport(id) {
     return item.id === id;
   });
 
-  if (!report) return;
+  if (!report || report.ownerUid !== currentUser.uid) return;
 
   editingId = id;
 
@@ -163,49 +137,43 @@ function editReport(id) {
   document.getElementById("reportDate").value = report.reportDate || "";
 
   photoInput.value = "";
-
   submitButton.textContent = "Save Changes →";
-  showMessage(
-    "Update the details above, then click Save Changes.",
-    "#2457e6"
-  );
+
+  showMessage("Update the details above, then click Save Changes.", "#2457e6");
 
   document.getElementById("report").scrollIntoView({
     behavior: "smooth"
   });
 }
 
-function deleteReport(id) {
-  const confirmed = confirm(
-    "Are you sure you want to delete this report?"
-  );
+async function deleteReport(id) {
+  if (!confirm("Are you sure you want to delete this report?")) return;
 
-  if (!confirmed) return;
+  try {
+    await itemsRef.doc(id).delete();
 
-  const previousReports = reports;
-  reports = reports.filter(function(report) {
-    return report.id !== id;
-  });
+    if (editingId === id) {
+      editingId = null;
+      reportForm.reset();
+      submitButton.textContent = "Submit Report →";
+    }
 
-  if (!saveReports()) {
-    reports = previousReports;
-    return;
+    showMessage("Report deleted successfully.", "#13865b");
+  } catch (error) {
+    console.error(error);
+    showMessage("Could not delete this report.", "#d83b50");
   }
-
-  if (editingId === id) {
-    editingId = null;
-    reportForm.reset();
-    submitButton.textContent = "Submit Report →";
-  }
-
-  showMessage("Report deleted successfully.", "#13865b");
-  displayReports();
 }
 
 searchInput.addEventListener("input", displayReports);
 
-reportForm.addEventListener("submit", function(event) {
+reportForm.addEventListener("submit", async function(event) {
   event.preventDefault();
+
+  if (!currentUser) {
+    showMessage("Please wait. Connecting to Firebase...", "#2457e6");
+    return;
+  }
 
   const type = document.getElementById("type").value;
   const itemName = document.getElementById("itemName").value.trim();
@@ -229,62 +197,48 @@ reportForm.addEventListener("submit", function(event) {
     return;
   }
 
-  // Keep the current photo if editing without uploading a new one
-  const oldReport = reports.find(function(report) {
-    return report.id === editingId;
-  });
+  const reportData = {
+    type: type,
+    itemName: itemName,
+    location: location,
+    category: category,
+    reportDate: reportDate,
+    ownerUid: currentUser.uid,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
 
-  function finishSave(photoData) {
-    const reportData = {
-      id: editingId || crypto.randomUUID(),
-      type: type,
-      itemName: itemName,
-      location: location,
-      category: category,
-      reportDate: reportDate,
-      photo: file
-        ? photoData
-        : (oldReport ? oldReport.photo : "")
-    };
+  submitButton.disabled = true;
 
-    const previousReports = reports;
-
+  try {
     if (editingId) {
-      reports = reports.map(function(report) {
-        return report.id === editingId ? reportData : report;
+      const oldReport = reports.find(function(r) {
+        return r.id === editingId;
       });
-    } else {
-      reports.push(reportData);
-    }
 
-    if (!saveReports()) {
-      reports = previousReports;
-      return;
+      if (!oldReport || oldReport.ownerUid !== currentUser.uid) {
+        throw new Error("You can only edit your own report.");
+      }
+
+      reportData.createdAt = oldReport.createdAt;
+      await itemsRef.doc(editingId).update(reportData);
+    } else {
+      await itemsRef.add(reportData);
     }
 
     editingId = null;
     reportForm.reset();
     submitButton.textContent = "Submit Report →";
 
-    displayReports();
-    showMessage("Report saved successfully!", "#13865b");
-  }
-
-  if (file) {
-    const reader = new FileReader();
-
-    reader.onload = function() {
-      finishSave(reader.result);
-    };
-
-    reader.onerror = function() {
-      showMessage("Could not read the selected photo.", "#d83b50");
-    };
-
-    reader.readAsDataURL(file);
-  } else {
-    finishSave("");
+    showMessage(
+      file
+        ? "Report saved. Photo upload is not available yet."
+        : "Report saved successfully!",
+      "#13865b"
+    );
+  } catch (error) {
+    console.error(error);
+    showMessage("Could not save report. Please try again.", "#d83b50");
+  } finally {
+    submitButton.disabled = false;
   }
 });
-
-displayReports();
