@@ -96,24 +96,14 @@
 
             <div class="form-group">
               <label for="itemName">Item name *</label>
-              <input
-                type="text"
-                id="itemName"
-                placeholder="e.g. Black wallet"
-                maxlength="100"
-                required
-              >
+              <input type="text" id="itemName"
+              placeholder="e.g. Black wallet" maxlength="100" required>
             </div>
 
             <div class="form-group">
               <label for="location">Location *</label>
-              <input
-                type="text"
-                id="location"
-                placeholder="e.g. College library"
-                maxlength="150"
-                required
-              >
+              <input type="text" id="location"
+              placeholder="e.g. College library" maxlength="150" required>
             </div>
 
             <div class="form-group">
@@ -159,12 +149,8 @@
 
           <div class="search-box">
             <span class="search-icon" aria-hidden="true">⌕</span>
-            <input
-              type="search"
-              id="searchInput"
-              placeholder="Search reports..."
-              aria-label="Search reports"
-            >
+            <input type="search" id="searchInput"
+            placeholder="Search reports..." aria-label="Search reports">
           </div>
 
           <div id="reportsList">
@@ -212,6 +198,28 @@
     <br>
     <span>Student project • Handle personal information carefully.</span>
   </footer>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDpJDiTi3YLI1svzqp_JfvNUKAHPLBKAoY",
+      authDomain: "foundit-2ae82.firebaseapp.com",
+      projectId: "foundit-2ae82",
+      storageBucket: "foundit-2ae82.firebasestorage.app",
+      messagingSenderId: "718611360491",
+      appId: "1:718611360491:web:dd2354eb4fe097c41c2cae",
+      measurementId: "G-E2V2WGX6HQ"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+  </script>
 
   <script src="script.js"></script>
 </body>
