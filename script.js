@@ -13,6 +13,10 @@ let unsubscribeReports = null;
 
 const itemsRef = db.collection("items");
 
+// Cloudinary settings
+const CLOUD_NAME = "ded2ycbp";
+const UPLOAD_PRESET = "foundit_upload";
+
 function showMessage(text, color) {
   message.textContent = text;
   message.style.color = color;
@@ -21,18 +25,44 @@ function showMessage(text, color) {
 function addTextElement(parent, tag, text, className) {
   const element = document.createElement(tag);
   element.textContent = text;
+
   if (className) element.className = className;
+
   parent.appendChild(element);
   return element;
 }
 
-// Anonymous login
+// Upload image to Cloudinary
+async function uploadPhoto(file) {
+  const formData = new FormData();
+
+  formData.append("file", file);
+  formData.append("upload_preset", UPLOAD_PRESET);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.error?.message || "Photo upload failed.");
+  }
+
+  return result.secure_url;
+}
+
+// Sign in anonymously
 auth.signInAnonymously().catch(function(error) {
   console.error(error);
-  showMessage("Sign-in failed. Please refresh.", "#d83b50");
+  showMessage("Sign-in failed. Please refresh and try again.", "#d83b50");
 });
 
-// Listen for login and reports
+// Listen for signed-in user and database changes
 auth.onAuthStateChanged(function(user) {
   if (!user) return;
 
@@ -49,6 +79,7 @@ auth.onAuthStateChanged(function(user) {
           ...doc.data()
         };
       });
+
       displayReports();
     }, function(error) {
       console.error(error);
@@ -71,9 +102,11 @@ function displayReports() {
 
   if (filteredReports.length === 0) {
     const emptyMessage = document.createElement("p");
+
     emptyMessage.textContent = searchText
       ? "No matching reports found. Try another search."
       : "No reports yet. Add the first community report!";
+
     reportsList.appendChild(emptyMessage);
     return;
   }
@@ -82,17 +115,35 @@ function displayReports() {
     const card = document.createElement("article");
     card.className = "report-card";
 
+    // Show uploaded photo
+    if (report.photoUrl) {
+      const photo = document.createElement("img");
+      photo.src = report.photoUrl;
+      photo.alt = report.itemName || "Reported item";
+      photo.loading = "lazy";
+      photo.style.width = "100%";
+      photo.style.maxHeight = "250px";
+      photo.style.objectFit = "contain";
+      photo.style.borderRadius = "10px";
+
+      card.appendChild(photo);
+    }
+
     const badge = document.createElement("span");
-    badge.className = report.type === "Lost" ? "lost-badge" : "found-badge";
-    badge.textContent = report.type === "Lost" ? "LOST ITEM" : "FOUND ITEM";
+    badge.className =
+      report.type === "Lost" ? "lost-badge" : "found-badge";
+    badge.textContent =
+      report.type === "Lost" ? "LOST ITEM" : "FOUND ITEM";
 
     card.appendChild(badge);
+
     addTextElement(card, "h3", report.itemName || "Unnamed item");
     addTextElement(card, "p", "Status: " + (report.type || "Not provided"));
     addTextElement(card, "p", "Category: " + (report.category || "Not provided"));
     addTextElement(card, "p", "Location: " + (report.location || "Not provided"));
     addTextElement(card, "p", "Date: " + (report.reportDate || "Not provided"));
 
+    // Only the report owner can edit or delete it
     if (currentUser && report.ownerUid === currentUser.uid) {
       const actions = document.createElement("div");
       actions.className = "report-actions";
@@ -101,6 +152,7 @@ function displayReports() {
       editButton.type = "button";
       editButton.className = "edit-button";
       editButton.textContent = "✎ Edit";
+
       editButton.addEventListener("click", function() {
         editReport(report.id);
       });
@@ -109,6 +161,7 @@ function displayReports() {
       deleteButton.type = "button";
       deleteButton.className = "delete-button";
       deleteButton.textContent = "✕ Delete";
+
       deleteButton.addEventListener("click", function() {
         deleteReport(report.id);
       });
@@ -137,9 +190,13 @@ function editReport(id) {
   document.getElementById("reportDate").value = report.reportDate || "";
 
   photoInput.value = "";
+
   submitButton.textContent = "Save Changes →";
 
-  showMessage("Update the details above, then click Save Changes.", "#2457e6");
+  showMessage(
+    "Update the details above, then click Save Changes.",
+    "#2457e6"
+  );
 
   document.getElementById("report").scrollIntoView({
     behavior: "smooth"
@@ -147,7 +204,11 @@ function editReport(id) {
 }
 
 async function deleteReport(id) {
-  if (!confirm("Are you sure you want to delete this report?")) return;
+  const confirmed = confirm(
+    "Are you sure you want to delete this report?"
+  );
+
+  if (!confirmed) return;
 
   try {
     await itemsRef.doc(id).delete();
@@ -197,29 +258,44 @@ reportForm.addEventListener("submit", async function(event) {
     return;
   }
 
-  const reportData = {
-    type: type,
-    itemName: itemName,
-    location: location,
-    category: category,
-    reportDate: reportDate,
-    ownerUid: currentUser.uid,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-  };
+  const oldReport = editingId
+    ? reports.find(function(r) {
+        return r.id === editingId;
+      })
+    : null;
+
+  if (editingId && (!oldReport || oldReport.ownerUid !== currentUser.uid)) {
+    showMessage("You can only edit your own report.", "#d83b50");
+    return;
+  }
 
   submitButton.disabled = true;
 
   try {
+    let photoUrl = oldReport?.photoUrl || "";
+
+    // Upload new photo if selected
+    if (file) {
+      showMessage("Uploading photo... Please wait.", "#2457e6");
+      photoUrl = await uploadPhoto(file);
+    }
+
+    showMessage("Saving report...", "#2457e6");
+
+    const reportData = {
+      type: type,
+      itemName: itemName,
+      location: location,
+      category: category,
+      reportDate: reportDate,
+      photoUrl: photoUrl,
+      ownerUid: currentUser.uid,
+      createdAt: oldReport
+        ? oldReport.createdAt
+        : firebase.firestore.FieldValue.serverTimestamp()
+    };
+
     if (editingId) {
-      const oldReport = reports.find(function(r) {
-        return r.id === editingId;
-      });
-
-      if (!oldReport || oldReport.ownerUid !== currentUser.uid) {
-        throw new Error("You can only edit your own report.");
-      }
-
-      reportData.createdAt = oldReport.createdAt;
       await itemsRef.doc(editingId).update(reportData);
     } else {
       await itemsRef.add(reportData);
@@ -229,15 +305,14 @@ reportForm.addEventListener("submit", async function(event) {
     reportForm.reset();
     submitButton.textContent = "Submit Report →";
 
-    showMessage(
-      file
-        ? "Report saved. Photo upload is not available yet."
-        : "Report saved successfully!",
-      "#13865b"
-    );
+    showMessage("Report and photo saved successfully!", "#13865b");
+
   } catch (error) {
     console.error(error);
-    showMessage("Could not save report. Please try again.", "#d83b50");
+    showMessage(
+      "Could not save report: " + error.message,
+      "#d83b50"
+    );
   } finally {
     submitButton.disabled = false;
   }
